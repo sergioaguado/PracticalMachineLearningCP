@@ -188,7 +188,7 @@ pml_write_files = function(x){
 pml_write_files(testPredictor)
 ```
 
-## Conclusion
+## Conclusions
 The model we have built has predicted the 100% of the outcomes in the test dataset. This research is the beginning of measuring how the people do a concrete exercise. In sports this will be a revolution for the next years because the teams will invest in improving how their players train for knowing how the trainer can obtain the best of their team.
 
 

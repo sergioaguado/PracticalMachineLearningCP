@@ -267,14 +267,6 @@ confusionMatrix(cvPredictor, crossValidation$classe)</code></pre>
 ## Balanced Accuracy      0.9985   0.9951   0.9946   0.9936   0.9971</code></pre>
 <p>The accuracy of the prediction is very high: <strong>99,37 %</strong></p>
 </div>
-<div id="validate-the-model-with-the-test-dataset" class="section level2">
-<h2>Validate the model with the test dataset</h2>
-<pre class="r"><code>testPredictor &lt;- predict(modelFit, test)
-
-testPredictor</code></pre>
-<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
-## Levels: A B C D E</code></pre>
-</div>
 <div id="errors" class="section level2">
 <h2>Errors</h2>
 <div id="in-sample-error" class="section level3">
@@ -284,6 +276,7 @@ testPredictor</code></pre>
 # Percentage
 inSampleError &lt;- sum(pred != training1$classe) * 100 / nrow(training1)</code></pre>
 <pre><code>## [1] &quot;In sample error: 0 %&quot;</code></pre>
+<p>The model fits perfectly the predictions with the data, it is posible that we have overfitting, so now we should test the out of sample error.</p>
 </div>
 <div id="out-of-sample-error" class="section level3">
 <h3>Out of sample error</h3>
@@ -291,8 +284,32 @@ inSampleError &lt;- sum(pred != training1$classe) * 100 / nrow(training1)</code>
 <pre class="r"><code>pred &lt;- predict(modelFit, newdata=crossValidation)
 # Percentage
 outSampleError &lt;- sum(pred != crossValidation$classe) * 100 / nrow(crossValidation)</code></pre>
-<pre><code>## [1] &quot;In sample error: 0.61 %&quot;</code></pre>
-<hr />
+<pre><code>## [1] &quot;Out of sample error: 0.63 %&quot;</code></pre>
+<p>As we expect, the error level is very low, so our model predicts well the results of the exercises.</p>
+</div>
+</div>
+<div id="validate-the-model-with-the-test-dataset-and-write-the-write-up-function." class="section level2">
+<h2>Validate the model with the test dataset and write the “write up function”.</h2>
+<pre class="r"><code>testPredictor &lt;- predict(modelFit, test)
+
+testPredictor</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
+<pre class="r"><code>pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0(&quot;problem_id_&quot;,i,&quot;.txt&quot;)
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(testPredictor)</code></pre>
+</div>
+<div id="conclusions" class="section level2">
+<h2>Conclusions</h2>
+<p>The model we have built has predicted the 100% of the outcomes in the test dataset. This research is the beginning of measuring how the people do a concrete exercise. In sports this will be a revolution for the next years because the teams will invest in improving how their players train for knowing how the trainer can obtain the best of their team.</p>
+<div id="referecnes" class="section level3">
+<h3>Referecnes</h3>
 <p><em>This research is done with the data from the “WLE dataset”, from Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13) . Stuttgart, Germany: ACM SIGCHI, 2013.</em></p>
 <p><em>Read more: <a href="http://groupware.les.inf.puc-rio.br/har#ixzz3V12rsj4R"><a href="http://groupware.les.inf.puc-rio.br/har#ixzz3V12rsj4R">http://groupware.les.inf.puc-rio.br/har#ixzz3V12rsj4R</a></a></em></p>
 </div>
