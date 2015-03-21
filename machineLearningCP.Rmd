@@ -1,0 +1,199 @@
+---
+title: "Qualitative Activity Recognition"
+author: "Sergio Aguado"
+date: "21th of March of 2015"
+output: html_document
+---
+
+#SUMMARY
+
+As the title explains, the purpose of this research is to analyze and predict the quality of a physical exercise. Nowadays it is a trend in the sports that teams invest in high technology for measuring and improving the way in how their players train. An example is the soccer team [Real Madrid](http://www.centrodeinnovacionbbva.com/en/news/real-madrid-and-borussia-dortmund-cutting-edge-sports-technology) from Spain which uses wereables for preventing injuries and know which players are ready to give their best performance.
+
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways
+
+- **Class A:** Exactly according to the following specifications.
+- **Class B:** Throwing the elbows to the front.
+- **Class C:** Lifting the dumbbel only halfway.
+- **Class D:** Lowering the dumbbel only halfway.
+- **Class E:** Throwing the hips to the front.
+
+**DATA** 
+
+The training data for this project are available here: 
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+
+The test data are available here: 
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) 
+
+
+## Exploratory Analysis
+
+After downloading the data sets (`training` and `test`) and see their caracteristics, it has been very important to do exploratory analysis. 
+
+```{r, echo=T, cache=T}
+dim(training)
+str(training)
+```
+
+
+## Clean the dataset
+
+The dataset contains 160 variables so we are going to see which ones we will use as predictors. First of all is removing the near zero varianze variables. 
+```{r, echo=T, cache=T}
+# Load the libraries we are going to use during the research
+library(lattice)
+library(caret)
+# Get the near zero var.
+nsv <- nearZeroVar(training,saveMetrics=TRUE)
+zeroVarPredictors <- nsv[nsv[,"zeroVar"] == TRUE,]
+# Select the names of the variables for removing them
+dropColumns <- names(training) %in% row.names(zeroVarPredictors)
+
+training <- training[,!dropColumns]
+test <- test[,!dropColumns]
+# Remove the variables from the enviroment for saving memory.
+rm(list=c("zeroVarPredictors", "nsv"))
+```
+
+```{r, echo=FALSE}
+print(paste("We have removed", length(dropColumns), "variables.", sep = " "))
+```
+
+By investigating deeper into the dataset, we have seen a lot of variables with missing values, so it is important to clean the dataset before building the model.
+
+```{r, echo=T, cache=T}
+# Remove variables with too much NA values in the training and test data sets.
+colNonNAs <- c()
+for (i in 1:length(names(training))) {
+        # More than 50% of NAs.
+        if (sum(is.na(training[,i]))/dim(training)[1] > 0.5) {
+                colNonNAs <- append(colNonNAs, names(training)[i])      
+        }
+}
+# Remove from the both training and test.
+training <- training[,!(names(training) %in% colNonNAs)]
+test <- test[,!(names(test) %in% colNonNAs)]
+
+# Remove the variables from the enviroment for saving memory.
+rm(list=c("colNonNAs"))
+```
+
+Finally, after reading the research from which we got the data, we can say that the following variables are not important for building the model: `X`, `user_name`, `raw_timestamp_part_1`, `raw_timestamp_part_2`, `cvtd_timestamp`, `new_window`, `num_window`. 
+
+In the study, the reasearchers said that *"We made sure that all participants could easily simulate the mistakes in a safe and contolled manner"*, therefore the outcome doesn't depends on the user, so we can remove also this variable.
+
+```{r, echo=T, cache=T}
+removeColumns <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")
+training <- training[,!(names(training) %in% removeColumns)]
+test <- test[,!(names(test) %in% removeColumns)]
+```
+
+
+## Create the model
+
+Once the data is cleaned, we split the training set we have in two sets: `training1` and `crossValidation` for validating the model we are going to build.
+
+```{r, echo=T, cache=T}
+# Set seed for reproductible analysis
+set.seed(141185)
+
+# The share will be 70%-30%
+inTrain = createDataPartition(training$classe, p = 0.7, list=FALSE)
+training1 = training[inTrain,]
+crossValidation = training[-inTrain,]
+
+```
+
+For estimating the accuracy of the model we are going to build, we have selected the cross validation k-fold method with 5-fold due it is a robust method.
+
+The algorith selected is random forest due to its highly accuracy rate and the time that consumes it isn't too high.
+
+```{r, echo=T, cache=T}
+train.control <- trainControl(method = "cv", number = 5)
+
+modelFit <- train(classe ~ ., data = training1, method = "rf",  trControl = train.control, allowParallel=TRUE)
+```
+
+```{r, echo=T, cache=T}
+# Model summary
+modelFit
+
+# Final model
+modelFit$finalModel
+```
+
+As we can see in the Confusion Matrix above, the accuracy is very high and the small errors the model has, are focused between the wrong exercises.
+
+
+
+**Test the accuracy in the `crossValidation` dataset.**
+
+```{r, echo=T, cache=T}
+cvPredictor <- predict(modelFit, crossValidation)
+
+confusionMatrix(cvPredictor, crossValidation$classe)
+```
+The accuracy of the prediction is very high: **99,37 %**
+
+## Errors
+
+### In sample error
+In this secction we test the errors that we have in the sample, which is the percentage of times that the predictions are different than the real value of the variable `classe`.
+```{r, echo=T, cache=T}
+pred <- predict(modelFit, newdata=training1)
+# Percentage
+inSampleError <- sum(pred != training1$classe) * 100 / nrow(training1)
+```
+
+
+```{r, echo=FALSE}
+print(paste("In sample error:", round(inSampleError,2), "%", sep=" "))
+```
+The model fits perfectly the predictions with the data, it is posible that we have overfitting, so now we should test the out of sample error.
+
+
+### Out of sample error
+
+Is the error of the data we don't have but want to forecast or estimate. 
+```{r, echo=T, cache=T}
+pred <- predict(modelFit, newdata=crossValidation)
+# Percentage
+outSampleError <- sum(pred != crossValidation$classe) * 100 / nrow(crossValidation)
+```
+
+```{r, echo=FALSE}
+print(paste("Out of sample error:", round(outSampleError,2), "%", sep=" "))
+```
+As we expect, the error level is very low, so our model predicts well the results of the exercises.
+
+
+## Validate the model with the test dataset and write the "write up function".
+
+```{r, echo=T, cache=T}
+testPredictor <- predict(modelFit, test)
+
+testPredictor
+
+```
+
+```{r, echo=T, cache=T}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(testPredictor)
+```
+
+## Conclusion
+The model we have built has predicted the 100% of the outcomes in the test dataset. This research is the beginning of measuring how the people do a concrete exercise. In sports this will be a revolution for the next years because the teams will invest in improving how their players train for knowing how the trainer can obtain the best of their team.
+
+
+### Referecnes
+*This research is done with the data from the "WLE dataset", from Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) .
+Stuttgart, Germany: ACM SIGCHI, 2013.*
+
+*Read more: [http://groupware.les.inf.puc-rio.br/har#ixzz3V12rsj4R](http://groupware.les.inf.puc-rio.br/har#ixzz3V12rsj4R)*
